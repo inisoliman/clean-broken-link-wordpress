@@ -267,7 +267,7 @@ For bug reports and feature requests, please use the [GitHub Issues](https://git
 
 ## 🙏 Credits
 
-Developed with ❤️ by Antigravity
+Developed with ❤️ by Ibrahim Noshy Soliman
 
 ## 📊 Stats
 
