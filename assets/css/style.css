@@ -1,0 +1,37 @@
+.smart-cleaner-dashboard {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.smart-cleaner-dashboard .card {
+    flex: 1;
+    min-width: 300px;
+    padding: 20px;
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+}
+
+.smart-cleaner-progress-bar-wrapper {
+    width: 100%;
+    background-color: #f0f0f1;
+    border-radius: 3px;
+    height: 20px;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+
+.smart-cleaner-progress-bar {
+    height: 100%;
+    background-color: #2271b1;
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+#current-status-log p {
+    margin: 0;
+    padding: 2px 0;
+    font-size: 12px;
+    border-bottom: 1px solid #ddd;
+}
