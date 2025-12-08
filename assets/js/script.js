@@ -81,6 +81,12 @@ jQuery(document).ready(function ($) {
         }
     });
 
+    $('#clear-all').on('click', function () {
+        if (confirm('Are you sure you want to clear all data (report + progress)? This will give you a completely fresh start. No content will be deleted from posts.')) {
+            clearAll();
+        }
+    });
+
     function startScan(offset, linkOffset) {
         isScanning = true;
         toggleButtons(true);
@@ -167,6 +173,28 @@ jQuery(document).ready(function ($) {
         });
     }
 
+    function clearAll() {
+        $.ajax({
+            url: smartCleaner.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'smart_cleaner_clear_report',
+                nonce: smartCleaner.nonce
+            },
+            success: function (response) {
+                if (response.success) {
+                    alert(response.data.message || 'All data cleared successfully. Starting fresh!');
+                    location.reload();
+                } else {
+                    alert('Error: ' + response.data);
+                }
+            },
+            error: function () {
+                alert('Error clearing data.');
+            }
+        });
+    }
+
     function resetProgress(callback) {
         $.ajax({
             url: smartCleaner.ajax_url,
@@ -182,17 +210,23 @@ jQuery(document).ready(function ($) {
     }
 
     function updateProgress(data) {
+        console.log('Update Progress Data:', data);
+
         $('.smart-cleaner-progress-bar').css('width', data.percentage + '%');
         $('#progress-text').text(data.percentage + '% Complete');
 
         if (data.results && data.results.length > 0) {
             data.results.forEach(function (result) {
+                console.log('Processing result:', result);
+
                 if (!result.partial) {
                     stats.postsScanned++;
                 }
 
                 var linksCount = result.scan.links ? result.scan.links.length : 0;
                 var imagesCount = result.scan.images ? result.scan.images.length : 0;
+
+                console.log('Links found:', linksCount, 'Images found:', imagesCount);
 
                 stats.linksFound += linksCount;
                 stats.imagesFound += imagesCount;
@@ -333,7 +367,7 @@ jQuery(document).ready(function ($) {
         $('#select-all-checkbox').prop('checked', false);
     });
 
-    // Delete selected
+    // Delete selected - with batch processing
     $('#delete-selected').on('click', function () {
         var selectedIds = [];
         $('.post-checkbox:checked').each(function () {
@@ -349,24 +383,150 @@ jQuery(document).ready(function ($) {
             return;
         }
 
+        // Start batch deletion
+        startBatchDeletion(selectedIds);
+    });
+
+    function startBatchDeletion(postIds) {
+        // Show progress bar
+        $('#deletion-progress').show();
+        $('#deletion-progress-bar').css('width', '0%');
+        $('#deletion-progress-text').text('Starting deletion...');
+        $('#deletion-status-log').html('');
+
+        // Disable buttons during deletion
+        $('#delete-selected, #select-all-posts, #deselect-all-posts, #clear-report').prop('disabled', true);
+
+        var totalPosts = postIds.length;
+        var currentIndex = 0;
+        var totalItemsDeleted = 0;
+
+        function deleteNextPost() {
+            if (currentIndex >= totalPosts) {
+                // All done
+                finishBatchDeletion(totalItemsDeleted);
+                return;
+            }
+
+            var postId = postIds[currentIndex];
+            var progress = ((currentIndex / totalPosts) * 100).toFixed(1);
+
+            $('#deletion-progress-bar').css('width', progress + '%');
+            $('#deletion-progress-text').text('Processing post ' + (currentIndex + 1) + ' of ' + totalPosts + ' (' + progress + '%)');
+
+            $.ajax({
+                url: smartCleaner.ajax_url,
+                type: 'POST',
+                data: {
+                    action: 'smart_cleaner_delete_single',
+                    nonce: smartCleaner.nonce,
+                    post_id: postId
+                },
+                success: function (response) {
+                    if (response.success) {
+                        var count = response.data.count || 0;
+                        totalItemsDeleted += count;
+
+                        var time = new Date().toLocaleTimeString();
+                        $('#deletion-status-log').prepend('<p>[' + time + '] Post #' + postId + ': Deleted ' + count + ' item(s)</p>');
+                    } else {
+                        var time = new Date().toLocaleTimeString();
+                        $('#deletion-status-log').prepend('<p style="color:red;">[' + time + '] Post #' + postId + ': Error - ' + response.data + '</p>');
+                    }
+
+                    currentIndex++;
+                    // Continue with next post
+                    setTimeout(deleteNextPost, 100);
+                },
+                error: function () {
+                    var time = new Date().toLocaleTimeString();
+                    $('#deletion-status-log').prepend('<p style="color:red;">[' + time + '] Post #' + postId + ': AJAX Error</p>');
+
+                    currentIndex++;
+                    // Continue with next post even if there was an error
+                    setTimeout(deleteNextPost, 100);
+                }
+            });
+        }
+
+        // Start the batch process
+        deleteNextPost();
+    }
+
+    function finishBatchDeletion(totalDeleted) {
+        $('#deletion-progress-bar').css('width', '100%');
+        $('#deletion-progress-text').text('Deletion complete! Total items deleted: ' + totalDeleted);
+
+        // Re-enable buttons
+        $('#delete-selected, #select-all-posts, #deselect-all-posts, #clear-report').prop('disabled', false);
+
+        alert('Successfully deleted ' + totalDeleted + ' broken items!');
+
+        // Reload report to show updated data
+        setTimeout(function () {
+            $('#deletion-progress').hide();
+            loadReport();
+        }, 2000);
+    }
+
+    // Clear report button - using event delegation since button is in a tab
+    $(document).on('click', '#clear-report', function () {
+        console.log('Clear Report button clicked');
+
+        if (!confirm('Are you sure you want to clear the report and progress? This will reset everything for a fresh scan. No content will be deleted from posts.')) {
+            console.log('User cancelled clear report');
+            return;
+        }
+
+        console.log('Sending AJAX request to clear report...');
+
         $.ajax({
             url: smartCleaner.ajax_url,
             type: 'POST',
             data: {
-                action: 'smart_cleaner_delete_selected',
+                action: 'smart_cleaner_clear_report',
+                nonce: smartCleaner.nonce
+            },
+            success: function (response) {
+                console.log('Clear report response:', response);
+
+                if (response.success) {
+                    alert(response.data.message || 'Report and progress cleared successfully.');
+                    // Reload page to reset UI state
+                    location.reload();
+                } else {
+                    alert('Error: ' + response.data);
+                }
+            },
+            error: function (xhr, status, error) {
+                console.error('Clear report error:', error);
+                console.error('Response:', xhr.responseText);
+                alert('Error clearing report: ' + error);
+            }
+        });
+    });
+
+    // Save settings button
+    $('#save-settings').on('click', function () {
+        var whitelist = $('#whitelist_domains').val();
+
+        $.ajax({
+            url: smartCleaner.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'smart_cleaner_save_settings',
                 nonce: smartCleaner.nonce,
-                post_ids: selectedIds
+                whitelist: whitelist
             },
             success: function (response) {
                 if (response.success) {
-                    alert('Successfully deleted ' + response.data.count + ' items from ' + selectedIds.length + ' post(s).');
-                    loadReport();
+                    $('#settings-saved').fadeIn().delay(2000).fadeOut();
                 } else {
                     alert('Error: ' + response.data);
                 }
             },
             error: function () {
-                alert('Error deleting items.');
+                alert('Error saving settings.');
             }
         });
     });

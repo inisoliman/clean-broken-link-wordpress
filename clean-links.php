@@ -262,3 +262,77 @@ function smart_cleaner_handle_reset() {
     delete_option( 'smart_cleaner_progress' );
     wp_send_json_success();
 }
+
+// Add action to clear report
+add_action( 'wp_ajax_smart_cleaner_clear_report', 'smart_cleaner_handle_clear_report' );
+function smart_cleaner_handle_clear_report() {
+    // Log that function was called
+    error_log('Smart Cleaner: clear_report action called');
+    
+    // Check nonce
+    if ( ! check_ajax_referer( 'smart_cleaner_nonce', 'nonce', false ) ) {
+        error_log('Smart Cleaner: Nonce verification failed');
+        wp_send_json_error( array( 'message' => 'Security check failed' ) );
+        return;
+    }
+    
+    error_log('Smart Cleaner: Nonce verified, deleting options');
+    
+    // Delete both pending items and progress for a completely fresh start
+    $deleted_pending = delete_option( 'smart_cleaner_pending' );
+    $deleted_progress = delete_option( 'smart_cleaner_progress' );
+    
+    error_log('Smart Cleaner: Deleted pending=' . ($deleted_pending ? 'yes' : 'no') . ', progress=' . ($deleted_progress ? 'yes' : 'no'));
+    
+    wp_send_json_success( array( 
+        'message' => __( 'Report and progress cleared successfully. You can now start a fresh scan.', 'smart-cleaner' ),
+        'deleted_pending' => $deleted_pending,
+        'deleted_progress' => $deleted_progress
+    ) );
+}
+
+// Add action to save settings
+add_action( 'wp_ajax_smart_cleaner_save_settings', 'smart_cleaner_handle_save_settings' );
+function smart_cleaner_handle_save_settings() {
+    check_ajax_referer( 'smart_cleaner_nonce', 'nonce' );
+    
+    $whitelist = isset( $_POST['whitelist'] ) ? sanitize_textarea_field( $_POST['whitelist'] ) : '';
+    
+    update_option( 'smart_cleaner_whitelist', $whitelist );
+    
+    wp_send_json_success( array( 
+        'message' => __( 'Settings saved successfully.', 'smart-cleaner' ) 
+    ) );
+}
+
+// Add action to delete broken items from a single post (for batch processing)
+add_action( 'wp_ajax_smart_cleaner_delete_single', 'smart_cleaner_handle_delete_single' );
+function smart_cleaner_handle_delete_single() {
+    check_ajax_referer( 'smart_cleaner_nonce', 'nonce' );
+    
+    $post_id = isset( $_POST['post_id'] ) ? intval( $_POST['post_id'] ) : 0;
+    
+    if ( ! $post_id ) {
+        wp_send_json_error( 'Invalid post ID' );
+    }
+    
+    $pending = get_option( 'smart_cleaner_pending', array() );
+    
+    if ( ! isset( $pending[ $post_id ] ) ) {
+        wp_send_json_error( 'No pending items for this post' );
+    }
+    
+    $cleaner = new Smart_Cleaner_Cleaner();
+    $result = $cleaner->clean_post( $post_id, $pending[ $post_id ] );
+    
+    $count = count( $pending[ $post_id ]['links'] ) + count( $pending[ $post_id ]['images'] );
+    
+    // Remove from pending list
+    unset( $pending[ $post_id ] );
+    update_option( 'smart_cleaner_pending', $pending, false );
+    
+    wp_send_json_success( array( 
+        'count' => $count,
+        'post_id' => $post_id
+    ) );
+}

@@ -4,6 +4,7 @@
     <h2 class="nav-tab-wrapper">
         <a href="#scanner" class="nav-tab nav-tab-active"><?php _e( 'Scanner', 'smart-cleaner' ); ?></a>
         <a href="#report" class="nav-tab"><?php _e( 'Report', 'smart-cleaner' ); ?></a>
+        <a href="#settings" class="nav-tab"><?php _e( 'Settings', 'smart-cleaner' ); ?></a>
     </h2>
 
     <!-- Scanner Tab -->
@@ -37,7 +38,9 @@
                         <button type="button" id="resume-scan" class="button button-primary button-large" style="display:none;"><?php _e( 'Resume Scan', 'smart-cleaner' ); ?></button>
                         <button type="button" id="stop-scan" class="button button-secondary button-large" disabled><?php _e( 'Stop', 'smart-cleaner' ); ?></button>
                         <button type="button" id="delete-pending" class="button button-primary button-large" style="background-color: #d63638; border-color: #d63638; display:none;"><?php _e( 'Delete Found Items', 'smart-cleaner' ); ?></button>
+                        <br><br>
                         <button type="button" id="reset-scan" class="button button-link button-large" style="color: #b32d2e; display:none;"><?php _e( 'Reset Progress', 'smart-cleaner' ); ?></button>
+                        <button type="button" id="clear-all" class="button button-link button-large" style="color: #d63638;"><?php _e( 'Clear All (Fresh Start)', 'smart-cleaner' ); ?></button>
                     </div>
                 </form>
             </div>
@@ -98,6 +101,17 @@
                     <button type="button" id="select-all-posts" class="button"><?php _e( 'Select All', 'smart-cleaner' ); ?></button>
                     <button type="button" id="deselect-all-posts" class="button"><?php _e( 'Deselect All', 'smart-cleaner' ); ?></button>
                     <button type="button" id="delete-selected" class="button button-primary" style="background-color: #d63638; border-color: #d63638; margin-left: 10px;"><?php _e( 'Delete Selected', 'smart-cleaner' ); ?></button>
+                    <button type="button" id="clear-report" class="button button-secondary" style="margin-left: 10px;"><?php _e( 'Clear Report', 'smart-cleaner' ); ?></button>
+                </div>
+                
+                <!-- Deletion Progress Bar -->
+                <div id="deletion-progress" style="display:none; margin-bottom: 15px; padding: 15px; background: #f0f0f1; border: 1px solid #c3c4c7; border-radius: 4px;">
+                    <h3 style="margin-top: 0;"><?php _e( 'Deleting Broken Items...', 'smart-cleaner' ); ?></h3>
+                    <div class="smart-cleaner-progress-bar-wrapper">
+                        <div id="deletion-progress-bar" class="smart-cleaner-progress-bar" style="width: 0%;"></div>
+                    </div>
+                    <p id="deletion-progress-text"><?php _e( 'Starting...', 'smart-cleaner' ); ?></p>
+                    <div id="deletion-status-log" style="max-height: 100px; overflow-y: auto; background: #fff; padding: 10px; border: 1px solid #ddd; margin-top: 10px;"></div>
                 </div>
                 
                 <table class="wp-list-table widefat fixed striped" id="report-table">
@@ -119,6 +133,54 @@
             <div id="report-empty" style="display:none; text-align: center; padding: 40px;">
                 <p><?php _e( 'No broken items found. Run a scan first.', 'smart-cleaner' ); ?></p>
             </div>
+        </div>
+    </div>
+
+    <!-- Settings Tab -->
+    <div id="settings-tab" class="tab-content" style="display:none;">
+        <div class="card">
+            <h2><?php _e( 'Domain Whitelist', 'smart-cleaner' ); ?></h2>
+            <p><?php _e( 'Add domains that should be skipped during scanning. Enter one domain per line (e.g., orsozox.com, example.com). Links from these domains will not be checked.', 'smart-cleaner' ); ?></p>
+            
+            <form id="settings-form">
+                <table class="form-table">
+                    <tr>
+                        <th scope="row">
+                            <label for="whitelist_domains"><?php _e( 'Whitelisted Domains', 'smart-cleaner' ); ?></label>
+                        </th>
+                        <td>
+                            <textarea id="whitelist_domains" name="whitelist_domains" rows="10" cols="50" class="large-text code" placeholder="orsozox.com&#10;example.com&#10;another-site.net"><?php echo esc_textarea( get_option( 'smart_cleaner_whitelist', '' ) ); ?></textarea>
+                            <p class="description">
+                                <?php _e( 'Enter one domain per line. Do not include http:// or https://. Examples: orsozox.com, 4shared.com, mediafire.com', 'smart-cleaner' ); ?>
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+                
+                <p class="submit">
+                    <button type="button" id="save-settings" class="button button-primary"><?php _e( 'Save Settings', 'smart-cleaner' ); ?></button>
+                    <span id="settings-saved" style="display:none; color: green; margin-left: 10px;">✓ <?php _e( 'Settings saved!', 'smart-cleaner' ); ?></span>
+                </p>
+            </form>
+        </div>
+        
+        <div class="card">
+            <h2><?php _e( 'Default Protected Domains', 'smart-cleaner' ); ?></h2>
+            <p><?php _e( 'These domains are automatically protected from 403 errors (built-in):', 'smart-cleaner' ); ?></p>
+            <ul style="list-style: disc; margin-left: 20px;">
+                <li>4shared.com</li>
+                <li>mediafire.com</li>
+                <li>mega.nz</li>
+                <li>drive.google.com</li>
+                <li>dropbox.com</li>
+                <li>onedrive.live.com</li>
+                <li>box.com</li>
+                <li>sendspace.com</li>
+                <li>zippyshare.com</li>
+                <li>uploaded.net</li>
+                <li>rapidgator.net</li>
+            </ul>
+            <p class="description"><?php _e( 'You can add more domains in the whitelist above.', 'smart-cleaner' ); ?></p>
         </div>
     </div>
 

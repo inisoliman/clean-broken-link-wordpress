@@ -79,7 +79,7 @@ class Smart_Cleaner_Scanner {
                 $href = $node->getAttribute( 'href' );
                 if ( $this->should_check_url( $href ) ) {
                     $status = $this->check_url( $href );
-                    if ( $this->is_broken( $status ) ) {
+                    if ( $this->is_broken( $status, $href ) ) {
                         $broken_links[] = array(
                             'url'    => $href,
                             'text'   => $node->nodeValue,
@@ -91,7 +91,7 @@ class Smart_Cleaner_Scanner {
                 $src = $node->getAttribute( 'src' );
                 if ( $this->should_check_url( $src ) ) {
                     $status = $this->check_url( $src );
-                    if ( $this->is_broken( $status ) ) {
+                    if ( $this->is_broken( $status, $src ) ) {
                         $broken_images[] = array(
                             'url'    => $src,
                             'alt'    => $node->getAttribute( 'alt' ),
@@ -117,6 +117,18 @@ class Smart_Cleaner_Scanner {
         if ( strpos( $url, '#' ) === 0 ) return false;
         if ( strpos( $url, 'mailto:' ) === 0 ) return false;
         if ( strpos( $url, 'tel:' ) === 0 ) return false;
+        
+        // Check custom whitelist from settings
+        $custom_whitelist = get_option( 'smart_cleaner_whitelist', '' );
+        if ( ! empty( $custom_whitelist ) ) {
+            $domains = array_filter( array_map( 'trim', explode( "\n", $custom_whitelist ) ) );
+            foreach ( $domains as $domain ) {
+                if ( ! empty( $domain ) && strpos( $url, $domain ) !== false ) {
+                    return false; // Skip this URL - it's in the custom whitelist
+                }
+            }
+        }
+        
         if ( ! filter_var( $url, FILTER_VALIDATE_URL ) ) {
              if ( strpos( $url, '/' ) === 0 ) return true; 
              return false;
@@ -133,11 +145,20 @@ class Smart_Cleaner_Scanner {
         }
 
         $args = array(
-            'timeout'     => 2, // Reduced timeout
-            'redirection' => 2,
-            'httpversion' => '1.0',
+            'timeout'     => 5, // Increased from 2 to 5 seconds for slow sites
+            'redirection' => 3, // Increased from 2 to 3
+            'httpversion' => '1.1', // Changed from 1.0 to 1.1
             'blocking'    => true,
-            'headers'     => array(),
+            'headers'     => array(
+                'User-Agent'      => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept'          => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+                'Accept-Language' => 'en-US,en;q=0.9,ar;q=0.8',
+                'Accept-Encoding' => 'gzip, deflate',
+                'Referer'         => home_url(),
+                'DNT'             => '1',
+                'Connection'      => 'keep-alive',
+                'Upgrade-Insecure-Requests' => '1',
+            ),
             'body'        => null,
             'cookies'     => array(),
             'sslverify'   => false,
@@ -156,9 +177,55 @@ class Smart_Cleaner_Scanner {
         return wp_remote_retrieve_response_code( $response );
     }
 
-    private function is_broken( $status ) {
+    /**
+     * Check if a status code indicates a broken link.
+     * 
+     * @param mixed $status HTTP status code or 'error'
+     * @param string $url The URL being checked (for domain-specific logic)
+     * @return bool True if broken, false otherwise
+     */
+    private function is_broken( $status, $url = '' ) {
         if ( $status === 'error' ) return true;
-        if ( intval( $status ) >= 400 ) return true;
+        
+        $code = intval( $status );
+        
+        // Handle 403 Forbidden specially
+        if ( $code === 403 ) {
+            // Known file-sharing and storage sites that block automated requests
+            // but are likely working fine
+            $safe_domains = array(
+                '4shared.com',
+                'mediafire.com',
+                'mega.nz',
+                'drive.google.com',
+                'dropbox.com',
+                'onedrive.live.com',
+                'box.com',
+                'sendspace.com',
+                'zippyshare.com',
+                'uploaded.net',
+                'rapidgator.net',
+            );
+            
+            foreach ( $safe_domains as $domain ) {
+                if ( strpos( $url, $domain ) !== false ) {
+                    return false; // Not broken, just has anti-bot protection
+                }
+            }
+            
+            // For other sites, 403 might indicate a real problem
+            // but we'll be conservative and not mark as broken
+            return false;
+        }
+        
+        // Only treat these as truly broken:
+        // 404 Not Found
+        // 410 Gone
+        // 500+ Server errors
+        if ( $code === 404 || $code === 410 || $code >= 500 ) {
+            return true;
+        }
+        
         return false;
     }
 }

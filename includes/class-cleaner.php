@@ -26,8 +26,8 @@ class Smart_Cleaner_Cleaner {
         // Suppress errors
         libxml_use_internal_errors( true );
         $dom = new DOMDocument();
-        // Load HTML with proper encoding
-        $dom->loadHTML( '<?xml encoding="UTF-8">' . $content, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD );
+        // Load HTML with proper encoding - same method as scanner
+        $dom->loadHTML( mb_convert_encoding( $content, 'HTML-ENTITIES', 'UTF-8' ), LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD );
         libxml_clear_errors();
 
         $modified = false;
@@ -94,9 +94,6 @@ class Smart_Cleaner_Cleaner {
                 // Fallback: save everything
                 $new_content = $dom->saveHTML();
             }
-            
-            // Remove the XML encoding declaration if present
-            $new_content = str_replace( '<?xml encoding="UTF-8">', '', $new_content );
             
             wp_update_post( array(
                 'ID'           => $post_id,
