@@ -1,11 +1,11 @@
 <?php
 /**
  * Plugin Name: Smart Link & Image Cleaner
- * Plugin URI: https://example.com/
+ * Plugin URI: https://orsozox.com/
  * Description: A smart plugin to scan, detect, and clean broken links and images from your posts automatically with batch processing.
  * Version: 1.0.5
- * Author: Antigravity
- * Author URI: https://example.com/
+ * Author: Ibrahim Noshy Soliman
+ * Author URI: https://t.me/inoshyi
  * Text Domain: smart-cleaner
  */
 
